@@ -21,6 +21,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     professionalHeadline,
     accountNo,
     upiId,
+    pancard,
   } = req.body;
 
   const user = await User.create({
@@ -31,6 +32,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     professionalHeadline,
     accountNo,
     upiId,
+    pancard,
     avatar: {
       public_id: myCloud.public_id,
       url: myCloud.secure_url,
@@ -192,6 +194,7 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
       country: req.body.country,
       accountNo: req.body.accountNo,
       upiId: req.body.upiId,
+      pancard: req.body.pancard,
     };
 
     console.log("Received user data:", newUserData);
@@ -445,4 +448,3 @@ exports.deleteUserReview = catchAsyncErrors(async (req, res, next) => {
     success: true,
   });
 });
-

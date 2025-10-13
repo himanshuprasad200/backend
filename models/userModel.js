@@ -33,12 +33,23 @@ const userSchema = new mongoose.Schema({
   },
   accountNo: {
     type: String,
-    required: [true, "Please Enter Your Account Number"],
+    required: [true, "Please Enter Your Account Number"], 
     validate: [validator.isNumeric, "Please Enter a Valid Account Number"],
   },
   upiId: {
     type: String,
     required: [true, "Please Enter Your UPI ID"],
+  },
+  pancard: {
+    type: String,
+    required: [true, "Please Enter Your PAN Card Number"],
+    uppercase: true,
+    validate: {
+      validator: function(v) {
+        return validator.matches(v, /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/);
+      },
+      message: "Please Enter a Valid PAN Card Number"
+    },
   },
   password: {
     type: String,
