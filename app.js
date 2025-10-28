@@ -8,7 +8,7 @@ const cors = require('cors')
 const path = require("path");
 
 app.use(cors({
-  origin: process.env.FRONTEND_PORT || 'http://localhost:3000', // Use env var
+  origin: process.env.FRONTEND_PORT || 'http://localhost:5173', // Use env var
   credentials: true
 }));
 app.use(express.json());
@@ -27,11 +27,11 @@ app.use("/api/v1", user);
 app.use("/api/v1", bid);
 app.use("/api/v1", earning);
 
-// app.use(express.static(path.join(__dirname, "../frontend/build")));
+app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
-// app.get("*", (req, res) => {
-//   res.sendFile(path.resolve(__dirname, "../frontend/build/index.html"));
-// });
+app.get("*", (req, res) => {
+  res.sendFile(path.resolve(__dirname, "../frontend/dist/index.html"));
+});
 
 // MIDDLEWARE FOR ERROR
 app.use(errorMiddleware);
