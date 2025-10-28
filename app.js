@@ -8,7 +8,7 @@ const cors = require('cors')
 const path = require("path");
 
 app.use(cors({
-  origin: process.env.FRONTEND_PORT || 'http://localhost:5173', // Use env var
+  origin: process.env.FRONTEND_PORT || 'https://frontend-fw.onrender.com', // Use env var
   credentials: true
 }));
 app.use(express.json());
