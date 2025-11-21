@@ -63,16 +63,19 @@ exports.loginUser = catchAsyncErrors(async (req, res, next) => {
   sendToken(user, 201, res);
 });
 
-//LOGOUT USER
+// LOGOUT USER
 exports.logout = catchAsyncErrors(async (req, res, next) => {
-  res.cookie("token", null, {
-    expires: new Date(Date.now()),
+  res.cookie("token", "", {
     httpOnly: true,
+    expires: new Date(0),
+    secure: true,
+    sameSite: "none",
+    path: "/",
   });
 
   res.status(200).json({
     success: true,
-    message: "User logged out",
+    message: "Logged out successfully",
   });
 });
 
@@ -118,7 +121,6 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
 // Reset Password
 exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
-  // creating token hash
   const resetPasswordToken = crypto
     .createHash("sha256")
     .update(req.params.token)
@@ -130,16 +132,11 @@ exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
   });
 
   if (!user) {
-    return next(
-      new ErrorHandler(
-        "Reset Password Token is invalid or has been expired",
-        400
-      )
-    );
+    return next(new ErrorHandler("Invalid or expired reset token", 400));
   }
 
   if (req.body.password !== req.body.confirmPassword) {
-    return next(new ErrorHandler("Password does not password", 400));
+    return next(new ErrorHandler("Passwords do not match", 400));
   }
 
   user.password = req.body.password;
@@ -150,7 +147,6 @@ exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
 
   sendToken(user, 200, res);
 });
-
 // GET USER DETAILS
 exports.getUserDetails = catchAsyncErrors(async (req, res, next) => {
   const user = await User.findById(req.user.id);
