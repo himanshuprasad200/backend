@@ -40,17 +40,17 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, "Please Enter Your UPI ID"],
   },
-  pancard: {
-    type: String,
-    required: [true, "Please Enter Your PAN Card Number"],
-    uppercase: true,
-    validate: {
-      validator: function(v) {
-        return validator.matches(v, /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/);
-      },
-      message: "Please Enter a Valid PAN Card Number"
-    },
-  },
+  // pancard: {
+  //   type: String,
+  //   required: [true, "Please Enter Your PAN Card Number"],
+  //   uppercase: true,
+  //   validate: {
+  //     validator: function(v) {
+  //       return validator.matches(v, /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/);
+  //     },
+  //     message: "Please Enter a Valid PAN Card Number"
+  //   },
+  // },
   password: {
     type: String,
     required: [true, "Please Enter Your Password"],
