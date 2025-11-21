@@ -1,37 +1,17 @@
+// models/bidModel.js
 const mongoose = require("mongoose");
 
 const bidSchema = new mongoose.Schema({
   proposal: {
     type: String,
-    required: true,
+    required: [true, "Please enter your proposal"],
+    trim: true,
   },
   bidsItems: [
     {
-      name: {
-        type: String,
-        required: true,
-      },
-      price: {
-        type: String,
-        required: true,
-      },
-      image: {
-        type: String,
-        required: true,
-      },
-      category: { 
-        type: String,
-        required: true,  
-      },
-      title: {
-        type: String,
-        required: true, 
-      },
-      project: {
-        type: mongoose.Schema.ObjectId,
-        ref: "Project",
-        required: true,
-      },
+      type: mongoose.Schema.ObjectId,
+      ref: "Project",
+      required: true,
     },
   ],
   user: {
@@ -42,9 +22,13 @@ const bidSchema = new mongoose.Schema({
   response: {
     type: String,
     enum: ["Pending", "Approved", "Rejected"],
-    default: "Pending"
+    default: "Pending",
   },
-  completedAt: Date,
+  file: String,
+  completedAt: {
+    type: Date,
+    default: Date.now,
+  },
   createdAt: {
     type: Date,
     default: Date.now,
