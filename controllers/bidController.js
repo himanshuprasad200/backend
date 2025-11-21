@@ -18,6 +18,7 @@ exports.newBid = catchAsyncErrors(async (req, res, next) => {
     success: true,
     bid, 
   });
+  console.log("REQ BODY:", JSON.stringify(req.body, null, 2));
 });
 
 //Get Single Bid
