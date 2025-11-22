@@ -1,16 +1,13 @@
 // utils/jwtToken.js
-
 const sendToken = (user, statusCode, res) => {
   const token = user.getJWTToken();
 
-  // Cookie options – CRITICAL FOR PRODUCTION
+  // HARD-CODED FOR PRODUCTION — NO CONDITIONALS!
   const options = {
-    expires: new Date(
-      Date.now() + process.env.COOKIE_EXPIRE * 24 * 60 * 60 * 1000
-    ),
+    expires: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // true in production (HTTPS)
-    sameSite: process.env.NODE_ENV === "production" ? "none" : "lax", // "none" for cross-site
+    secure: true,        // MUST be true on HTTPS
+    sameSite: "none",    // MUST be "none" for cross-site
     path: "/",
   };
 
@@ -20,7 +17,7 @@ const sendToken = (user, statusCode, res) => {
     .json({
       success: true,
       user,
-      // token, // optional: don't send token in body if using httpOnly
+      // token, // optional: only if you want Bearer fallback
     });
 };
 
