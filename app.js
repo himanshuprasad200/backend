@@ -12,7 +12,8 @@ app.set("trust proxy", 1);
 
 // CORS — Allow your frontend
 const allowedOrigins = [
-  "https://frontend-fw.onrender.com",  // Your actual frontend
+  "https://frontend-fw.onrender.com", // Your actual frontend
+  "https://frontend-fw-bay.vercel.app",  
   "http://localhost:5173"
 ];
 
