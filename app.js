@@ -14,7 +14,8 @@ app.set("trust proxy", 1);
 const allowedOrigins = [
   "https://frontend-fw.onrender.com", // Your actual frontend
   "https://frontend-fw-bay.vercel.app",  
-  "http://localhost:5173"
+  "http://localhost:5173",
+  "http://localhost:5174"
 ];
 
 app.use(

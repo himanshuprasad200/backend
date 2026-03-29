@@ -7,10 +7,11 @@ class ApiFeatures {
   search() {
     const keyword = this.queryStr.keyword
       ? {
-          name: {
-            $regex: this.queryStr.keyword,
-            $options: "i",
-          },
+          $or: [
+            { name: { $regex: this.queryStr.keyword, $options: "i" } },
+            { title: { $regex: this.queryStr.keyword, $options: "i" } },
+            { desc: { $regex: this.queryStr.keyword, $options: "i"} }
+          ],
         }
       : {};
 
