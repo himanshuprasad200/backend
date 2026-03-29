@@ -56,12 +56,14 @@ const project = require("./routes/projectRoute");
 const user = require("./routes/userRoute");
 const bid = require("./routes/bidRoute");
 const earning = require("./routes/earningRoute");
+const message = require("./routes/messageRoute");
 
 // Mount Routes
 app.use("/api/v1", project);
 app.use("/api/v1", user);
 app.use("/api/v1", bid);
 app.use("/api/v1", earning);
+app.use("/api/v1", message);
 
 // Test route (optional)
 app.get("/", (req, res) => {

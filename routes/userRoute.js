@@ -35,5 +35,6 @@ router
   .delete(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), deleteUser);
   router.route('/user/review').put(isAuthenticatedUser, createUserReview)
   router.route("/user/reviews").get(getUserReviews).delete(isAuthenticatedUser, deleteUserReview)
+  router.route("/user/chat/:id").get(isAuthenticatedUser, require("../controllers/userController").getUserBasicInfo);
 
 module.exports = router;

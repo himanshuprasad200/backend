@@ -85,9 +85,28 @@ exports.getProjectDetails = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Project not found", 404));
   }
 
+  let hasApplied = false;
+  let bidStatus = null;
+  // If user is logged in, check if they have applied to this project
+  if (req.user) {
+    const bid = await Bid.findOne({
+      user: req.user._id,
+      bidsItems: { $in: [req.params.id] }
+    });
+    if (bid) {
+      bidStatus = bid.response || "Pending";
+      // Only allow chat if Pending or Approved (Rejected is locked)
+      if (bidStatus === "Pending" || bidStatus === "Approved") {
+        hasApplied = true; 
+      }
+    }
+  }
+
   res.status(200).json({
     success: true,
     project,
+    hasApplied,
+    bidStatus
   });
 });
 

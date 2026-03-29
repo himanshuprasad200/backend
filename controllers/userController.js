@@ -493,3 +493,17 @@ exports.deleteUserReview = catchAsyncErrors(async (req, res, next) => {
     success: true,
   });
 });
+
+// GET BASIC USER INFO (For Chat)
+exports.getUserBasicInfo = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.params.id).select("name avatar");
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    user,
+  });
+});
