@@ -56,10 +56,12 @@ exports.getUserEarnings = catchAsyncErrors(async (req, res, next) => {
     // Find all earnings for the specific user
     const earnings = await Earning.find({ user: userId });
 
+    // If no earnings, just return empty array instead of 404 error
     if (earnings.length === 0) {
-      return res.status(404).json({
-        success: false,
-        message: "No earnings found for the user",
+      return res.status(200).json({
+        success: true,
+        earnings: [],
+        totalAmount: 0
       });
     }
 
