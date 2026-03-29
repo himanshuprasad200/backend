@@ -41,9 +41,10 @@ app.use(
 app.options("*", cors());
 
 // Body parsers & middlewares
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.urlencoded({ extended: true }));
+// Increase limits for large image payloads (e.g., base64 strings)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 app.use(fileUpload({
   useTempFiles: true,

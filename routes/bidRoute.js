@@ -15,10 +15,10 @@ router.route("/bid/:id").get(isAuthenticatedUser, getSingleBid);
 router.route("/bids/me").get(isAuthenticatedUser, myBids);
 router
   .route("/admin/bids")
-  .get(isAuthenticatedUser, authorizeRoles("admin"), getAllBids);
+  .get(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), getAllBids);
 router
   .route("/admin/bid/:id")
-  .put(isAuthenticatedUser, authorizeRoles("admin"), updateBid)
-  .delete(isAuthenticatedUser, authorizeRoles("admin"), deleteBid);
+  .put(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), updateBid)
+  .delete(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), deleteBid);
 
 module.exports = router;

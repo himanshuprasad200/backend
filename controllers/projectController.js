@@ -61,7 +61,12 @@ exports.getAllProjects = catchAsyncErrors(async (req, res) => {
 
 //Get All Projects -- Admin only
 exports.getAdminProjects = catchAsyncErrors(async (req, res) => {
-  const projects = await Project.find();
+  let projects;
+  if (req.user.role === "superadmin") {
+    projects = await Project.find();
+  } else {
+    projects = await Project.find({ postedBy: req.user.id });
+  }
 
   res.status(200).json({
     success: true,
@@ -92,6 +97,10 @@ exports.updateProject = catchAsyncErrors(async (req, res, next) => {
 
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
+  }
+  
+  if (req.user.role !== "superadmin" && project.postedBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("Not authorized to update this project", 403));
   }
 
   let images = [];
@@ -142,6 +151,10 @@ exports.deleteProject = async (req, res, next) => {
 
     if (!project) {
       return next(new ErrorHandler("Project not found", 404));
+    }
+    
+    if (req.user.role !== "superadmin" && project.postedBy.toString() !== req.user.id) {
+      return next(new ErrorHandler("Not authorized to delete this project", 403));
     }
 
     // DELETING IMAGES FROM CLOUDINARY

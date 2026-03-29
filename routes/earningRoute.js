@@ -12,6 +12,6 @@ router.route("/earnings").post(createEarning);
 router.route("/user/earning").get(isAuthenticatedUser, getUserEarnings);
 router
   .route("/admin/earning")
-  .get(isAuthenticatedUser, authorizeRoles("admin"), getAllEarnings);
+  .get(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), getAllEarnings);
 
 module.exports = router;

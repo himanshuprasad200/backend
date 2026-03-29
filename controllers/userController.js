@@ -1,6 +1,8 @@
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const User = require("../models/userModel");
+const Project = require("../models/projectModel");
+const Bid = require("../models/bidModel");
 const sendToken = require("../utils/jwtToken");
 const sendEmail = require("../utils/sendEmail");
 const cloudinary = require("cloudinary");
@@ -259,7 +261,24 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
 
 // GET ALL USERS(Admin)
 exports.getAllUser = catchAsyncErrors(async (req, res, next) => {
-  const users = await User.find();
+  let users;
+
+  if (req.user.role === "superadmin") {
+    users = await User.find();
+  } else {
+    // Find projects posted by the admin
+    const adminProjects = await Project.find({ postedBy: req.user.id }).select("_id");
+    const projectIds = adminProjects.map((p) => p._id);
+
+    // Find bids for these projects
+    const bids = await Bid.find({ bidsItems: { $in: projectIds } }).select("user");
+    const userIds = bids.map((b) => b.user);
+
+    // Admins can see themselves and users who bid on their projects
+    userIds.push(req.user.id);
+
+    users = await User.find({ _id: { $in: userIds } });
+  }
 
   res.status(200).json({
     success: true,
@@ -277,6 +296,17 @@ exports.getSingleUser = catchAsyncErrors(async (req, res, next) => {
     );
   }
 
+  // Security check: Admin can only access their own profile or users who bid on their projects
+  if (req.user.role !== "superadmin" && req.user.id !== req.params.id) {
+    const adminProjects = await Project.find({ postedBy: req.user.id }).select("_id");
+    const projectIds = adminProjects.map((p) => p._id);
+    const hasBid = await Bid.exists({ bidsItems: { $in: projectIds }, user: req.params.id });
+
+    if (!hasBid) {
+      return next(new ErrorHandler("Not authorized to access this user", 403));
+    }
+  }
+
   res.status(200).json({
     success: true,
     user,
@@ -286,6 +316,17 @@ exports.getSingleUser = catchAsyncErrors(async (req, res, next) => {
 //UPDATE USER ROLE
 exports.updateUser = catchAsyncErrors(async (req, res, next) => {
   try {
+    // Security check
+    if (req.user.role !== "superadmin" && req.user.id !== req.params.id) {
+      const adminProjects = await Project.find({ postedBy: req.user.id }).select("_id");
+      const projectIds = adminProjects.map((p) => p._id);
+      const hasBid = await Bid.exists({ bidsItems: { $in: projectIds }, user: req.params.id });
+
+      if (!hasBid) {
+        return next(new ErrorHandler("Not authorized to modify this user", 403));
+      }
+    }
+
     const newUserData = {
       name: req.body.name,
       email: req.body.email,
@@ -315,6 +356,17 @@ exports.updateUser = catchAsyncErrors(async (req, res, next) => {
 
 //DELETE USER
 exports.deleteUser = catchAsyncErrors(async (req, res, next) => {
+  // Security check
+  if (req.user.role !== "superadmin" && req.user.id !== req.params.id) {
+    const adminProjects = await Project.find({ postedBy: req.user.id }).select("_id");
+    const projectIds = adminProjects.map((p) => p._id);
+    const hasBid = await Bid.exists({ bidsItems: { $in: projectIds }, user: req.params.id });
+
+    if (!hasBid) {
+      return next(new ErrorHandler("Not authorized to delete this user", 403));
+    }
+  }
+
   const user = await User.findById(req.params.id);
 
   if (!user) {

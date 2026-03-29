@@ -15,13 +15,13 @@ const router = express.Router();
 
 router
   .route("/admin/project/new")
-  .post(isAuthenticatedUser, authorizeRoles("admin"), createProject);
+  .post(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), createProject);
 router.route("/projects").get(getAllProjects);
-router.route("/admin/projects").get(isAuthenticatedUser, authorizeRoles("admin"), getAdminProjects);
+router.route("/admin/projects").get(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), getAdminProjects);
 router
   .route("/admin/project/:id")
-  .put(isAuthenticatedUser, authorizeRoles("admin"), updateProject)
-  .delete(isAuthenticatedUser, authorizeRoles("admin"), deleteProject);
+  .put(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), updateProject)
+  .delete(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), deleteProject);
 router.route("/project/:id").get(getProjectDetails);
 router.route('/review').put(isAuthenticatedUser, createProjectReview)
 router.route('/reviews').get(getProjectReviews).delete(isAuthenticatedUser, deleteReview)

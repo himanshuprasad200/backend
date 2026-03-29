@@ -112,13 +112,28 @@ exports.myBids = catchAsyncErrors(async (req, res, next) => {
 
 // Get All Bids (Admin) - FULLY POPULATED
 exports.getAllBids = catchAsyncErrors(async (req, res, next) => {
-  const bids = await Bid.find()
-    .sort({ createdAt: -1 })
-    .populate("user", "name email")
-    .populate({
-      path: "bidsItems",
-      select: "title price images category",
-    });
+  let bids;
+
+  if (req.user.role === "superadmin") {
+    bids = await Bid.find()
+      .sort({ createdAt: -1 })
+      .populate("user", "name email avatar accountNo upiId")
+      .populate({
+        path: "bidsItems",
+        select: "title price images category",
+      });
+  } else {
+    const myProjects = await Project.find({ postedBy: req.user.id }).select("_id");
+    const myProjectIds = myProjects.map((p) => p._id);
+
+    bids = await Bid.find({ bidsItems: { $in: myProjectIds } })
+      .sort({ createdAt: -1 })
+      .populate("user", "name email avatar accountNo upiId")
+      .populate({
+        path: "bidsItems",
+        select: "title price images category",
+      });
+  }
 
   res.status(200).json({
     success: true,
@@ -140,6 +155,19 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
   
     if (!bid) {
       return next(new ErrorHandler("Bid not found", 404));
+    }
+
+    // NEW CHECK: Verify if admin posted at least one project in this bid
+    if (req.user.role !== "superadmin") {
+      const bidProjectIds = bid.bidsItems;
+      const adminProjects = await Project.find({
+        _id: { $in: bidProjectIds },
+        postedBy: req.user.id
+      });
+
+      if (adminProjects.length === 0) {
+        return next(new ErrorHandler("Not authorized to manage this bid", 403));
+      }
     }
   
     if (bid.response === "Approved" && newStatus === "Approved") {
@@ -165,6 +193,19 @@ exports.deleteBid = catchAsyncErrors(async (req, res, next) => {
 
   if (!bid) {
     return next(new ErrorHandler("Bid not found", 404));
+  }
+
+  // Verify if admin posted at least one project in this bid
+  if (req.user.role !== "superadmin") {
+    const bidProjectIds = bid.bidsItems;
+    const adminProjects = await Project.find({
+      _id: { $in: bidProjectIds },
+      postedBy: req.user.id
+    });
+
+    if (adminProjects.length === 0) {
+      return next(new ErrorHandler("Not authorized to delete this bid", 403));
+    }
   }
 
   await bid.deleteOne(); 
