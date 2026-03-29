@@ -1,25 +1,35 @@
-# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+# ======================
+# Dependencies
+# ======================
+node_modules/
+frontend/node_modules/
+frontend/.pnp
+frontend.pnp.js
 
-# dependencies
-/node_modules
-/frontend/node_modules
-/frontend/.pnp
-/frontend.pnp.js
+# ======================
+# Build & Coverage
+# ======================
+frontend/build/
+frontend/coverage/
 
-# testing
-/frontend/coverage
+# ======================
+# Environment files (CRITICAL)
+# ======================
+.env
+.env.*
+backend/.env
+backend/.env.*
+frontend/.env
+frontend/.env.*
 
-# production
-/frontend/build
+# ======================
+# OS / Editor files
+# ======================
+.DS_Store
 
-# misc
-/backend/.env
-/frontend.DS_Store
-/frontend.env.local
-/frontend.env.development.local
-/frontend.env.test.local
-/frontend.env.production.local
-
+# ======================
+# Logs
+# ======================
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
