@@ -89,31 +89,27 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("User not found", 404));
   }
 
-  // Get ResetPassword Token
-  const resetToken = user.getResetPasswordToken();
+  // Get Reset OTP
+  const otp = user.getResetOTP();
 
   await user.save({ validateBeforeSave: false });
 
-  const resetPasswordUrl = `${req.protocol}://${req.get(
-    "host"
-  )}/password/reset/${resetToken}`;
-
-  const message = `Your password reset token is :- \n\n ${resetPasswordUrl} \n\nIf you have not requested this email then, please ignore it.`;
+  const message = `Your password reset OTP is :- \n\n ${otp} \n\nThis OTP is valid for 10 minutes. If you have not requested this email then, please ignore it.`;
 
   try {
     await sendEmail({
       email: user.email,
-      subject: `Freelance Password Recovery`,
+      subject: `Freelance Password Recovery OTP`,
       message,
     });
 
     res.status(200).json({
       success: true,
-      message: `Email sent to ${user.email} successfully`,
+      message: `OTP sent to ${user.email} successfully`,
     });
   } catch (error) {
-    user.resetPasswordToken = undefined;
-    user.resetPasswordExpire = undefined;
+    user.resetOTP = undefined;
+    user.resetOTPExpire = undefined;
 
     await user.save({ validateBeforeSave: false });
 
@@ -123,27 +119,29 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
 // Reset Password
 exports.resetPassword = catchAsyncErrors(async (req, res, next) => {
-  const resetPasswordToken = crypto
-    .createHash("sha256")
-    .update(req.params.token)
-    .digest("hex");
+  const { email, otp, password, confirmPassword } = req.body;
 
-  const user = await User.findOne({
-    resetPasswordToken,
-    resetPasswordExpire: { $gt: Date.now() },
+  if (!email || !otp) {
+    return next(new ErrorHandler("Email and OTP are required", 400));
+  }
+
+  const user = await User.findOne({ 
+    email,
+    resetOTP: otp,
+    resetOTPExpire: { $gt: Date.now() },
   });
 
   if (!user) {
-    return next(new ErrorHandler("Invalid or expired reset token", 400));
+    return next(new ErrorHandler("Invalid or expired OTP", 400));
   }
 
-  if (req.body.password !== req.body.confirmPassword) {
+  if (password !== confirmPassword) {
     return next(new ErrorHandler("Passwords do not match", 400));
   }
 
-  user.password = req.body.password;
-  user.resetPasswordToken = undefined;
-  user.resetPasswordExpire = undefined;
+  user.password = password;
+  user.resetOTP = undefined;
+  user.resetOTPExpire = undefined;
 
   await user.save();
 
@@ -505,5 +503,19 @@ exports.getUserBasicInfo = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     user,
+  });
+});
+
+// GET SUPPORT ID (Superadmin)
+exports.getSupportId = catchAsyncErrors(async (req, res, next) => {
+  const admin = await User.findOne({ role: "superadmin" }).select("_id");
+  
+  if (!admin) {
+    return next(new ErrorHandler("Support administrator not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    supportId: admin._id,
   });
 });

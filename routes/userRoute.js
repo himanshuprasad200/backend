@@ -14,6 +14,8 @@ const {
   createUserReview,
   getUserReviews,
   deleteUserReview,
+  getSupportId,
+  resetPassword,
 } = require("../controllers/userController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 const router = express.Router();
@@ -21,6 +23,7 @@ const router = express.Router();
 router.route("/register").post(registerUser);
 router.route("/login").post(loginUser);
 router.route("/password/forgot").post(forgotPassword);
+router.route("/password/reset").put(resetPassword);
 router.route("/logout").get(logout);
 router.route("/me").get(isAuthenticatedUser, getUserDetails);
 router.route("/password/update").put(isAuthenticatedUser, updatePassword);
@@ -36,5 +39,6 @@ router
   router.route('/user/review').put(isAuthenticatedUser, createUserReview)
   router.route("/user/reviews").get(getUserReviews).delete(isAuthenticatedUser, deleteUserReview)
   router.route("/user/chat/:id").get(isAuthenticatedUser, require("../controllers/userController").getUserBasicInfo);
+  router.route("/support/id").get(isAuthenticatedUser, getSupportId);
 
 module.exports = router;

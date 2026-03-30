@@ -106,6 +106,8 @@ const userSchema = new mongoose.Schema({
   },
   resetPasswordToken: String,
   resetPasswordExpire: Date,
+  resetOTP: String,
+  resetOTPExpire: Date,
 },{
   timestamps: true,
 });
@@ -130,7 +132,17 @@ userSchema.methods.comparePassword = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-// GENERATING PASSWORD RESET TOKEN
+// GENERATING PASSWORD RESET OTP
+userSchema.methods.getResetOTP = function () {
+  // Generate 6 digit numeric OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+  this.resetOTP = otp;
+  this.resetOTPExpire = Date.now() + 10 * 60 * 1000; // 10 minutes
+
+  return otp;
+};
+
 userSchema.methods.getResetPasswordToken = function () {
   // GENERATING TOKEN
   const resetToken = crypto.randomBytes(20).toString("hex");
