@@ -3,6 +3,7 @@ const {
   getUserEarnings,
   createEarning,
   getAllEarnings,
+  getPublicEarning,
 } = require("../controllers/earningController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 
@@ -10,6 +11,7 @@ const router = express.Router();
 
 router.route("/earnings").post(createEarning);
 router.route("/user/earning").get(isAuthenticatedUser, getUserEarnings);
+router.route("/public/earning/:token").get(getPublicEarning);
 router
   .route("/admin/earning")
   .get(isAuthenticatedUser, authorizeRoles("admin", "superadmin"), getAllEarnings);

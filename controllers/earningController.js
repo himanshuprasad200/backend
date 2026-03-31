@@ -78,6 +78,43 @@ exports.getUserEarnings = catchAsyncErrors(async (req, res, next) => {
   }
 });
 
+// Get public earnings summary (using token)
+exports.getPublicEarning = catchAsyncErrors(async (req, res, next) => {
+  const { token } = req.params;
+  const jwt = require("jsonwebtoken");
+
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+    const userId = decoded.id;
+
+    const user = await User.findById(userId).select("name accountNo createdAt");
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found" });
+    }
+
+    const earnings = await Earning.find({ user: userId }).sort({ recievedAt: -1 });
+    const totalAmount = earnings.reduce((sum, e) => sum + e.amount, 0);
+
+    // Prepare a safe summary
+    res.status(200).json({
+      success: true,
+      data: {
+        userName: user.name,
+        accountNo: user.accountNo ? `Ends in ${String(user.accountNo).slice(-4)}` : "N/A",
+        totalAmount,
+        creditedAmount: earnings.length > 0 ? earnings[0].amount : 0, // Most recent
+        latestEarning: earnings.length > 0 ? {
+            amount: earnings[0].amount,
+            recievedAt: earnings[0].recievedAt
+        } : null,
+        memberSince: new Date(user.createdAt).getFullYear()
+      },
+    });
+  } catch (error) {
+    return res.status(401).json({ success: false, message: "Invalid or expired access token" });
+  }
+});
+
 
 
 

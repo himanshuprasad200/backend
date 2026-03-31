@@ -182,6 +182,120 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
   
     await bid.save({ validateBeforeSave: false });
   
+    // --- SEND EMAIL NOTIFICATION ---
+    try {
+        const sendEmail = require("../utils/sendEmail");
+        const populatedBid = await Bid.findById(bidId)
+            .populate("user", "name email accountNo") // Populate accountNo
+            .populate("bidsItems", "title price");
+
+        const user = populatedBid.user;
+        const projects = populatedBid.bidsItems;
+        const projectTitles = projects.map(p => p.title).join(", ");
+        const amount = req.body.amount || projects.reduce((acc, p) => acc + (p.price || 0), 0);
+        
+        // Truncate proposal for email
+        const proposalPreview = populatedBid.proposal.length > 150 
+            ? populatedBid.proposal.slice(0, 150) + "..." 
+            : populatedBid.proposal;
+            
+        const approvalDate = new Date().toLocaleDateString('en-IN', {
+            day: '2-digit',
+            month: 'long',
+            year: 'numeric'
+        });
+
+        let subject, message, htmlContent;
+
+        const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || '5173'}`;
+        
+        // Generate a public access token for this user's balance summary
+        const jwt = require("jsonwebtoken");
+        const publicAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+            expiresIn: "7d", // Valid for 7 days
+        });
+
+        if (newStatus === "Approved") {
+            const publicLink = `${frontendUrl}/public/earning/${publicAccessToken}`;
+            subject = `Good News! Your Bid for "${projectTitles}" has been Approved`;
+            message = `Hi ${user.name},\nWe are pleased to inform you that your bid for "${projectTitles}" has been Approved on ${approvalDate}.\nPayment of ₹${amount} is sent to Account No: ${user.accountNo || 'N/A'}.\nProposal Snippet: ${proposalPreview}\nView your balance summary (no login required): ${publicLink}\nFull Account Dashboard: ${frontendUrl}/user/earning`;
+            
+            htmlContent = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Bid Approved!</h1>
+                    </div>
+                    <div style="padding: 30px; line-height: 1.6;">
+                        <p style="font-size: 16px;">Hi <strong>${user.name}</strong>,</p>
+                        <p>We're thrilled to share that your bid for <strong>${projectTitles}</strong> was <strong>Approved</strong> on <strong>${approvalDate}</strong>.</p>
+                        
+                        <div style="background: #f8fafc; padding: 20px; border-radius: 8px; margin: 25px 0;">
+                            <h3 style="margin-top: 0; color: #0284c7;">Bid & Payment Summary</h3>
+                            <p style="margin: 8px 0;"><strong>Project:</strong> ${projectTitles}</p>
+                            <p style="margin: 8px 0;"><strong>Account No:</strong> ${user.accountNo || 'Not Provided'}</p>
+                            <p style="margin: 8px 0;"><strong>Payment Amount:</strong> <span style="color: #16a34a; font-weight: 700;">₹${Number(amount).toLocaleString('en-IN')}</span></p>
+                            <p style="margin: 8px 0; color: #64748b; font-size: 14px; font-style: italic;"><strong>Proposal Preview:</strong> ${proposalPreview}</p>
+                        </div>
+                        
+                        <p>The client has initiated the payment to your registered bank account. You can track this and other payment history in your dashboard.</p>
+                        
+                        <div style="text-align: center; margin-top: 35px;">
+                            <a href="${publicLink}" 
+                               style="background-color: #0ea5e9; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
+                               Quick Balance Check
+                            </a>
+                            <p style="font-size: 11px; margin-top: 10px; color: #94a3b8;">This link allows you to view your earnings summary without logging in. Valid for 7 days.</p>
+                        </div>
+                    </div>
+                    <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 13px; color: #64748b;">
+                        Copyright © FlexiWork. All rights reserved.
+                    </div>
+                </div>
+            `;
+        } else {
+            subject = `Update on your Bid for "${projectTitles}"`;
+            message = `Hi ${user.name},\nThank you for your proposal for "${projectTitles}". Unfortunately, the client has not moved forward with your proposal this time.\nProposal Snippet: ${proposalPreview}\nKeep applying! Your next big break is just around the corner: ${frontendUrl}/projects`;
+            
+            htmlContent = `
+                <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
+                    <div style="background: #64748b; padding: 30px; text-align: center;">
+                        <h1 style="color: white; margin: 0; font-size: 24px;">Bid Update</h1>
+                    </div>
+                    <div style="padding: 30px; line-height: 1.6;">
+                        <p style="font-size: 16px;">Hi <strong>${user.name}</strong>,</p>
+                        <p>Thank you for submitting your proposal for <strong>${projectTitles}</strong>.</p>
+                        <p>After careful review, the client has decided not to proceed with your proposal at this time. We encourage you to keep exploring and applying for other exciting opportunities on FlexiWork.</p>
+                        
+                        <div style="background: #f8fafc; padding: 15px; border-radius: 8px; margin: 25px 0;">
+                            <p style="margin: 0; color: #64748b; font-style: italic;"><strong>Proposal Preview:</strong> ${proposalPreview}</p>
+                        </div>
+                        
+                        <div style="text-align: center; margin-top: 35px;">
+                            <a href="${frontendUrl}/projects" 
+                               style="background-color: #64748b; color: white; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: 700; display: inline-block;">
+                               Browse More Projects
+                            </a>
+                        </div>
+                    </div>
+                    <div style="background: #f1f5f9; padding: 20px; text-align: center; font-size: 13px; color: #64748b;">
+                        Stay persistent, hard work pays off!
+                    </div>
+                </div>
+            `;
+        }
+
+        await sendEmail({
+            email: user.email,
+            subject,
+            message,
+            html: htmlContent
+        });
+
+    } catch (err) {
+        console.error("Email Sending Error:", err);
+        // We don't block the response update if email fails, just log it
+    }
+  
     res.status(200).json({
       success: true,
     });
