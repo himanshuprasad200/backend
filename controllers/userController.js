@@ -9,11 +9,22 @@ const cloudinary = require("cloudinary");
 
 //Register user
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
-  const myCloud = await cloudinary.v2.uploader.upload(req.body.avatar, {
-    folder: "avatars",
-    width: 150,
-    crop: "scale",
-  });
+  let avatarObj = {
+    public_id: "default_avatar",
+    url: "/Profile.png",
+  };
+
+  if (req.body.avatar && req.body.avatar !== "") {
+    const myCloud = await cloudinary.v2.uploader.upload(req.body.avatar, {
+      folder: "avatars",
+      width: 150,
+      crop: "scale",
+    });
+    avatarObj = {
+      public_id: myCloud.public_id,
+      url: myCloud.secure_url,
+    };
+  }
 
   const {
     name,
@@ -33,10 +44,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     professionalHeadline,
     accountNo,
     upiId,
-    avatar: {
-      public_id: myCloud.public_id,
-      url: myCloud.secure_url,
-    },
+    avatar: avatarObj,
   });
 
   sendToken(user, 201, res);
@@ -227,6 +235,29 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
       newUserData.avatar = {
         public_id: myCloud.public_id,
         url: myCloud.secure_url,
+      };
+    }
+
+    if (req.body.banner && req.body.banner !== "") {
+      const user = await User.findById(req.user.id);
+      if (!user) {
+        return res.status(404).json({
+          success: false,
+          message: "User not found",
+        });
+      }
+
+      if (user.banner && user.banner.public_id) {
+        await cloudinary.v2.uploader.destroy(user.banner.public_id);
+      }
+
+      const myCloudBanner = await cloudinary.v2.uploader.upload(req.body.banner, {
+        folder: "banners",
+      });
+
+      newUserData.banner = {
+        public_id: myCloudBanner.public_id,
+        url: myCloudBanner.secure_url,
       };
     }
 
