@@ -11,19 +11,22 @@ const sendEmail = async (options) => {
     const transporter = nodeMailer.createTransport({
         host: host,
         port: port,
-        secure: isSecure,
-        family: 4, // Force IPv4 to avoid connection timeouts in some cloud environments
+        secure: false, // Use false for port 587 (STARTTLS)
+        requireTLS: true,
         auth: {
             user: process.env.SMPT_MAIL,
             pass: process.env.SMPT_PASSWORD,
         },
         tls: {
-            rejectUnauthorized: false
+            // This can help with some connection issues in cloud environments
+            rejectUnauthorized: false,
+            minVersion: "TLSv1.2"
         },
         connectionTimeout: 10000, 
         greetingTimeout: 10000,
         socketTimeout: 20000,
     });
+
 
 
     const mailOptions = {
