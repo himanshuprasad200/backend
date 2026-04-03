@@ -3,6 +3,7 @@ const Project = require("../models/projectModel");
 const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const mongoose = require("mongoose");
+const sendEmail = require("../utils/sendEmail");
 
 //Create New Bid
 exports.newBid = catchAsyncErrors(async (req, res, next) => {
@@ -184,7 +185,6 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
   
     // --- SEND EMAIL NOTIFICATION ---
     try {
-        const sendEmail = require("../utils/sendEmail");
         const populatedBid = await Bid.findById(bidId)
             .populate("user", "name email accountNo") // Populate accountNo
             .populate("bidsItems", "title price");

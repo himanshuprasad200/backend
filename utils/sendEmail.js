@@ -1,15 +1,30 @@
 const nodeMailer = require('nodemailer');
 
 const sendEmail = async (options) => {
+    // Use host and port from environment variables for greater flexibility
+    const host = process.env.SMPT_HOST || 'smtp.gmail.com';
+    const port = parseInt(process.env.SMPT_PORT, 10) || 465;
+    
+    // For Gmail on port 465, secure must be true. For 587, it should be false (STARTTLS).
+    const isSecure = port === 465;
+
     const transporter = nodeMailer.createTransport({
-        service: "gmail",
-        port: 465,
-        secure: true,
+        host: host,
+        port: port,
+        secure: isSecure,
+        family: 4, // Force IPv4 to avoid connection timeouts in some cloud environments
         auth: {
             user: process.env.SMPT_MAIL,
             pass: process.env.SMPT_PASSWORD,
-        }
+        },
+        tls: {
+            rejectUnauthorized: false
+        },
+        connectionTimeout: 10000, 
+        greetingTimeout: 10000,
+        socketTimeout: 20000,
     });
+
 
     const mailOptions = {
         from: `FlexiWork <${process.env.SMPT_MAIL}>`,
@@ -17,9 +32,15 @@ const sendEmail = async (options) => {
         subject: options.subject,
         text: options.message,
         html: options.html
-    }
+    };
 
-    await transporter.sendMail(mailOptions);
-}
+    try {
+        await transporter.sendMail(mailOptions);
+        console.log(`Email successfully sent to: ${options.email}`);
+    } catch (error) {
+        console.error(`Email delivery failed to ${options.email}:`, error);
+        throw error; // Rethrow to let the controller handle it
+    }
+};
 
 module.exports = sendEmail;
