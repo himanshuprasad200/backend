@@ -4,6 +4,7 @@ const ErrorHandler = require("../utils/errorHandler");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
+const cloudinary = require("cloudinary");
 
 //Create New Bid
 exports.newBid = catchAsyncErrors(async (req, res, next) => {
@@ -47,11 +48,29 @@ exports.newBid = catchAsyncErrors(async (req, res, next) => {
     }
   }
 
+  // Attachments Handling
+  let attachments = [];
+  if (req.files && req.files.files) {
+    let files = Array.isArray(req.files.files) ? req.files.files : [req.files.files];
+    for (const file of files) {
+      const result = await cloudinary.v2.uploader.upload(file.tempFilePath, {
+        folder: "bids",
+        resource_type: "auto",
+      });
+      attachments.push({
+        public_id: result.public_id,
+        url: result.secure_url,
+        name: file.name,
+        resource_type: result.resource_type,
+      });
+    }
+  }
+
   const bid = await Bid.create({
     proposal,
     bidsItems: projectIds,
     user: req.user._id,
-    file: req.file ? req.file.filename : undefined,
+    attachments,
   });
 
   // Populate for response
@@ -319,6 +338,17 @@ exports.deleteBid = catchAsyncErrors(async (req, res, next) => {
 
     if (adminProjects.length === 0) {
       return next(new ErrorHandler("Not authorized to delete this bid", 403));
+    }
+  }
+
+  // Deleting attachments from Cloudinary
+  if (bid.attachments && bid.attachments.length > 0) {
+    for (const attachment of bid.attachments) {
+      // Use stored resource_type or fallback logic for old bids
+      const rType = attachment.resource_type || (attachment.url.includes("/raw/") ? "raw" : "image");
+      await cloudinary.v2.uploader.destroy(attachment.public_id, {
+        resource_type: rType,
+      });
     }
   }
 
