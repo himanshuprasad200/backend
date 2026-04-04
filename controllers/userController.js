@@ -14,8 +14,14 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     url: "/Profile.png",
   };
 
-  if (req.body.avatar && req.body.avatar !== "") {
-    const myCloud = await cloudinary.v2.uploader.upload(req.body.avatar, {
+  // Support both Base64 (req.body) and File (req.files)
+  let avatarData = req.body.avatar;
+  if (req.files && req.files.avatar) {
+    avatarData = req.files.avatar.tempFilePath;
+  }
+
+  if (avatarData && avatarData !== "") {
+    const myCloud = await cloudinary.v2.uploader.upload(avatarData, {
       folder: "avatars",
       width: 150,
       crop: "scale",
@@ -200,7 +206,13 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
 
     console.log("Received user data:", newUserData);
 
-    if (req.body.avatar && req.body.avatar !== "") {
+    // Support both Base64 and File Upload for Avatar
+    let avatarData = req.body.avatar;
+    if (req.files && req.files.avatar) {
+      avatarData = req.files.avatar.tempFilePath;
+    }
+
+    if (avatarData && avatarData !== "") {
       const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({
@@ -211,22 +223,11 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
 
       const imageId = user.avatar.public_id;
 
-      if (imageId) {
+      if (imageId && imageId !== "default_avatar") {
         await cloudinary.v2.uploader.destroy(imageId);
       }
 
-      // Check if req.body.avatar is a valid URL or base64 string
-      if (
-        typeof req.body.avatar !== "string" ||
-        req.body.avatar.trim() === ""
-      ) {
-        return res.status(400).json({
-          success: false,
-          message: "Invalid avatar data",
-        });
-      }
-
-      const myCloud = await cloudinary.v2.uploader.upload(req.body.avatar, {
+      const myCloud = await cloudinary.v2.uploader.upload(avatarData, {
         folder: "avatars",
         width: 150,
         crop: "scale",
@@ -238,7 +239,13 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
       };
     }
 
-    if (req.body.banner && req.body.banner !== "") {
+    // Support both Base64 and Image Upload for Banner
+    let bannerData = req.body.banner;
+    if (req.files && req.files.banner) {
+      bannerData = req.files.banner.tempFilePath;
+    }
+
+    if (bannerData && bannerData !== "") {
       const user = await User.findById(req.user.id);
       if (!user) {
         return res.status(404).json({
@@ -251,7 +258,7 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
         await cloudinary.v2.uploader.destroy(user.banner.public_id);
       }
 
-      const myCloudBanner = await cloudinary.v2.uploader.upload(req.body.banner, {
+      const myCloudBanner = await cloudinary.v2.uploader.upload(bannerData, {
         folder: "banners",
       });
 
