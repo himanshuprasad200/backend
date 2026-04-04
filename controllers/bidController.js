@@ -66,16 +66,28 @@ exports.newBid = catchAsyncErrors(async (req, res, next) => {
     }
   }
 
+  // Fetch project details for pricing snapshot
+  const projects = await Project.find({ _id: { $in: projectIds } });
+  
+  if (projects.length === 0) {
+      return next(new ErrorHandler("Selected projects not found", 404));
+  }
+
+  const bidsItemsSnapshots = projects.map(p => ({
+      project: p._id,
+      price: p.price
+  }));
+
   const bid = await Bid.create({
     proposal,
-    bidsItems: projectIds,
+    bidsItems: bidsItemsSnapshots,
     user: req.user._id,
     attachments,
   });
 
   // Populate for response
   const populatedBid = await Bid.findById(bid._id).populate({
-    path: "bidsItems",
+    path: "bidsItems.project",
     select: "title price images category name",
   });
 
@@ -93,7 +105,7 @@ exports.getSingleBid = catchAsyncErrors(async (req, res, next) => {
   const bid = await Bid.findById(req.params.id)
     .populate("user", "name email avatar")
     .populate({
-      path: "bidsItems",
+      path: "bidsItems.project",
       select: "title price images category postedBy",
       populate: {
         path: "postedBy",
@@ -104,6 +116,37 @@ exports.getSingleBid = catchAsyncErrors(async (req, res, next) => {
   if (!bid) {
     return next(new ErrorHandler("Bid not found", 404));
   }
+
+  // LEGACY SUPPORT: Normalize old bids from various previous schema versions
+  const normalizedItems = [];
+  for (let item of bid.bidsItems) {
+    if (item.project && typeof item.project !== 'string' && item.project.title) {
+       // New structure, already populated
+       normalizedItems.push(item);
+    } else if (item.project) {
+       // Semi-legacy: has project ID as string, maybe has flat data (title, price, etc.)
+       const projectId = typeof item.project === 'string' ? item.project : item.project.toString();
+       const projectData = await Project.findById(projectId).populate("postedBy", "name avatar");
+       if (projectData) {
+          normalizedItems.push({
+             project: projectData,
+             price: item.price || projectData.price,
+             isLegacy: true
+          });
+       }
+    } else {
+       // Deep legacy: item itself is the ID
+       const projectData = await Project.findById(item).populate("postedBy", "name avatar");
+       if (projectData) {
+          normalizedItems.push({
+             project: projectData,
+             price: projectData.price,
+             isLegacy: true
+          });
+       }
+    }
+  }
+  bid.bidsItems = normalizedItems;
 
   res.status(200).json({
     success: true,
@@ -116,7 +159,7 @@ exports.myBids = catchAsyncErrors(async (req, res, next) => {
   const bids = await Bid.find({ user: req.user._id })
     .sort({ createdAt: -1 })
     .populate({
-      path: "bidsItems",
+      path: "bidsItems.project",
       select: "title price images category postedBy",
       populate: {
         path: "postedBy",
@@ -124,9 +167,28 @@ exports.myBids = catchAsyncErrors(async (req, res, next) => {
       },
     });
 
+  const normalizedBidsList = [];
+  for (let b of bids) {
+    const bItems = [];
+    for (let item of b.bidsItems) {
+      if (item.project && typeof item.project !== 'string' && item.project.title) {
+        bItems.push(item);
+      } else if (item.project) {
+        const pId = typeof item.project === 'string' ? item.project : item.project.toString();
+        const lp = await Project.findById(pId).populate("postedBy", "name avatar");
+        if (lp) bItems.push({ project: lp, price: item.price || lp.price, isLegacy: true });
+      } else {
+        const lp = await Project.findById(item).populate("postedBy", "name avatar");
+        if (lp) bItems.push({ project: lp, price: lp.price, isLegacy: true });
+      }
+    }
+    b.bidsItems = bItems;
+    normalizedBidsList.push(b);
+  }
+
   res.status(200).json({
     success: true,
-    bids,
+    bids: normalizedBidsList,
   });
 });
 
@@ -139,25 +201,49 @@ exports.getAllBids = catchAsyncErrors(async (req, res, next) => {
       .sort({ createdAt: -1 })
       .populate("user", "name email avatar accountNo upiId")
       .populate({
-        path: "bidsItems",
+        path: "bidsItems.project",
         select: "title price images category",
       });
   } else {
     const myProjects = await Project.find({ postedBy: req.user.id }).select("_id");
     const myProjectIds = myProjects.map((p) => p._id);
 
-    bids = await Bid.find({ bidsItems: { $in: myProjectIds } })
+    bids = await Bid.find({ 
+      $or: [
+        { "bidsItems.project": { $in: myProjectIds } },
+        { "bidsItems": { $in: myProjectIds } }
+      ]
+    })
       .sort({ createdAt: -1 })
       .populate("user", "name email avatar accountNo upiId")
       .populate({
-        path: "bidsItems",
+        path: "bidsItems.project",
         select: "title price images category",
       });
   }
 
+  const adminBids = [];
+  for (let b of (bids || [])) {
+    const bItems = [];
+    for (let item of (b.bidsItems || [])) {
+      if (item.project && typeof item.project !== 'string' && item.project.title) {
+        bItems.push(item);
+      } else if (item.project) {
+        const pId = typeof item.project === 'string' ? item.project : item.project.toString();
+        const lp = await Project.findById(pId);
+        if (lp) bItems.push({ project: lp, price: item.price || lp.price, isLegacy: true });
+      } else {
+        const lp = await Project.findById(item);
+        if (lp) bItems.push({ project: lp, price: lp.price, isLegacy: true });
+      }
+    }
+    b.bidsItems = bItems;
+    adminBids.push(b);
+  }
+
   res.status(200).json({
     success: true,
-    bids,
+    bids: adminBids,
   });
 });
 
@@ -179,7 +265,7 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
 
     // NEW CHECK: Verify if admin posted at least one project in this bid
     if (req.user.role !== "superadmin") {
-      const bidProjectIds = bid.bidsItems;
+      const bidProjectIds = bid.bidsItems.map(item => item.project);
       const adminProjects = await Project.find({
         _id: { $in: bidProjectIds },
         postedBy: req.user.id
@@ -206,11 +292,11 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
     try {
         const populatedBid = await Bid.findById(bidId)
             .populate("user", "name email accountNo") // Populate accountNo
-            .populate("bidsItems", "title price");
+            .populate("bidsItems.project", "title price");
 
         const user = populatedBid.user;
         const projects = populatedBid.bidsItems;
-        const projectTitles = projects.map(p => p.title).join(", ");
+        const projectTitles = projects.map(p => p.project.title).join(", ");
         const amount = req.body.amount || projects.reduce((acc, p) => acc + (p.price || 0), 0);
         
         // Truncate proposal for email
@@ -330,7 +416,7 @@ exports.deleteBid = catchAsyncErrors(async (req, res, next) => {
 
   // Verify if admin posted at least one project in this bid
   if (req.user.role !== "superadmin") {
-    const bidProjectIds = bid.bidsItems;
+    const bidProjectIds = bid.bidsItems.map(item => item.project);
     const adminProjects = await Project.find({
       _id: { $in: bidProjectIds },
       postedBy: req.user.id

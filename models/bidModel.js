@@ -9,9 +9,15 @@ const bidSchema = new mongoose.Schema({
   },
   bidsItems: [
     {
-      type: mongoose.Schema.ObjectId,
-      ref: "Project",
-      required: true,
+      project: {
+        type: mongoose.Schema.ObjectId,
+        ref: "Project",
+        required: true,
+      },
+      price: {
+        type: Number,
+        required: true,
+      },
     },
   ],
   user: {
