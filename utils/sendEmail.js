@@ -2,7 +2,11 @@ const nodeMailer = require('nodemailer');
 
 // Create the transporter once to reuse connections (Pooling)
 const transporter = nodeMailer.createTransport({
-    service: process.env.SMPT_SERVICE || 'gmail',
+    // Instead of service, explicitly define host & port to bypass cloud outbound firewalls
+    host: process.env.SMPT_HOST || 'smtp.gmail.com',
+    port: process.env.SMPT_PORT || 587, // Port 587 (STARTTLS) is less likely to be blocked than 465
+    secure: false,        // true for 465, false for 587
+    requireTLS: true,     // Force TLS for security on port 587
     pool: true,           // Use connection pool to avoid creating new connections for every email
     maxConnections: 5,    // Limit simultaneous connections
     maxMessages: 100,     // Re-use connection for multiple messages
@@ -13,6 +17,9 @@ const transporter = nodeMailer.createTransport({
         user: process.env.SMPT_MAIL,
         pass: process.env.SMPT_PASSWORD,
     },
+    tls: {
+        rejectUnauthorized: false // Helps avoid SSL hand-shake errors in strict proxy environments
+    }
 });
 
 const sendEmail = async (options) => {
