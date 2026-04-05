@@ -70,10 +70,11 @@ io.on("connection", (socket) => {
   socket.on("send_message", async (data) => {
     try {
       const newMessage = new Message({
-        sender: data.sender,
-        receiver: data.receiver,
+        sender: String(data.sender),
+        receiver: String(data.receiver),
         project: data.project,
         text: data.text,
+        media: data.media || null,
       });
 
       const savedMessage = await newMessage.save();
@@ -82,12 +83,12 @@ io.on("connection", (socket) => {
       io.to(data.room).emit("received_message", savedMessage);
 
       // Send notifications to ALL active sockets of the receiver
-      const receivers = onlineUsers.filter((u) => u.userId === data.receiver);
+      const receivers = onlineUsers.filter((u) => String(u.userId) === String(data.receiver));
       receivers.forEach(r => {
         io.to(r.socketId).emit("new_notification", {
-          sender: data.sender,
+          sender: String(data.sender),
           senderName: data.senderName,
-          text: data.text,
+          text: data.text || (Array.isArray(data.media) ? `Sent ${data.media.length} file(s)` : (data.media ? `Sent a ${data.media.type}` : "sent a file")),
           room: data.room,
         });
       });

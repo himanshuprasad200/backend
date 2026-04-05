@@ -1,5 +1,7 @@
 const Message = require("../models/messageModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const cloudinary = require("cloudinary");
+const ErrorHandler = require("../utils/errorHandler");
 
 exports.getMessages = catchAsyncErrors(async (req, res, next) => {
   const { projectId, userId } = req.query; 
@@ -54,7 +56,7 @@ exports.getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
         senderId,
         senderName: msg.sender.name,
         senderAvatar: msg.sender.avatar?.url,
-        text: msg.text, // Latest message snippet
+        text: msg.text || (msg.media ? `Sent a ${msg.media.type}` : "New message"), // Latest message snippet
         count: 1,
         createdAt: msg.createdAt
       });
@@ -82,5 +84,59 @@ exports.markMessagesAsRead = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true
+  });
+});
+
+exports.uploadChatMedia = catchAsyncErrors(async (req, res, next) => {
+  if (!req.files || !req.files.media) {
+    return next(new ErrorHandler("No media files uploaded", 400));
+  }
+
+  const files = Array.isArray(req.files.media) ? req.files.media : [req.files.media];
+
+  if (files.length > 10) {
+    return next(new ErrorHandler("You can upload max 10 files at a time", 400));
+  }
+
+  const mediaArray = await Promise.all(
+    files.map(async (file) => {
+      const mimeType = file.mimetype;
+      let mediaType = "document";
+
+      if (mimeType.startsWith("image/")) {
+        mediaType = "image";
+      } else if (mimeType.startsWith("video/")) {
+        mediaType = "video";
+      }
+
+      try {
+        const options = {
+          folder: "chat_media",
+          resource_type: "auto",
+        };
+
+        const myCloud = await cloudinary.v2.uploader.upload(file.tempFilePath, options);
+
+        return {
+          url: myCloud.secure_url,
+          public_id: myCloud.public_id,
+          type: mediaType,
+        };
+      } catch (error) {
+        console.error("Cloudinary upload failed for one file:", error);
+        return null;
+      }
+    })
+  );
+
+  const filteredMedia = mediaArray.filter((item) => item !== null);
+
+  if (filteredMedia.length === 0) {
+    return next(new ErrorHandler("Failed to upload media files", 500));
+  }
+
+  res.status(200).json({
+    success: true,
+    media: filteredMedia,
   });
 });

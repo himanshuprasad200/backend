@@ -131,7 +131,7 @@ exports.getSingleBid = catchAsyncErrors(async (req, res, next) => {
           normalizedItems.push({
              project: projectData,
              price: item.price || projectData.price,
-             isLegacy: true
+             isLegacy: true1
           });
        }
     } else {

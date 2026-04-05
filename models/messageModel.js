@@ -18,8 +18,17 @@ const messageSchema = new mongoose.Schema({
   },
   text: {
     type: String,
-    required: true,
+    required: false,
   },
+  media: [
+    {
+      url: String,
+      public_id: String,
+      type: {
+        type: String,
+      },
+    }
+  ],
   isRead: {
     type: Boolean,
     default: false,
