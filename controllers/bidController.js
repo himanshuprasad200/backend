@@ -154,7 +154,7 @@ exports.getSingleBid = catchAsyncErrors(async (req, res, next) => {
   });
 });
 
-// Get Logged in user Bids - FULLY POPULATED
+// Get Logged in user Bids - FULLY POPULATED 
 exports.myBids = catchAsyncErrors(async (req, res, next) => {
   const bids = await Bid.find({ user: req.user._id })
     .sort({ createdAt: -1 })
