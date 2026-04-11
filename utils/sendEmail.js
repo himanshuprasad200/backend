@@ -1,52 +1,39 @@
-const nodeMailer = require('nodemailer');
+const { Resend } = require('resend');
 
+/**
+ * sendEmail — sends a transactional email via the Resend HTTPS API.
+ * 
+ * Unlike nodemailer + SMTP, Resend communicates entirely over HTTPS so it
+ * works on Render (and any cloud host) without port-blocking issues.
+ */
 const sendEmail = async (options) => {
-    const transporter = nodeMailer.createTransport({
-        host: process.env.SMPT_HOST || 'smtp.gmail.com',
-        port: process.env.SMPT_PORT || 587,
-        secure: false,
-        requireTLS: true,
-        auth: {
-            user: process.env.SMPT_MAIL,
-            pass: process.env.SMPT_PASSWORD,
-        },
-        tls: {
-            rejectUnauthorized: false
-        }
-    });
+    // We initialize Resend inside the function to ensure process.env.RESEND_API_KEY
+    // is loaded (by dotenv) before we use it. This also prevents the server
+    // from crashing on boot if the key is missing.
+    if (!process.env.RESEND_API_KEY || process.env.RESEND_API_KEY === 're_YOUR_API_KEY_HERE') {
+        console.error("ERROR: Resend API Key is missing or default. Please set RESEND_API_KEY in your .env file.");
+        throw new Error("Email configuration missing: RESEND_API_KEY is not set.");
+    }
 
-    const mailOptions = {
-        from: `FlexiWork <${process.env.SMPT_MAIL}>`,
-        to: options.email,
+    const resend = new Resend(process.env.RESEND_API_KEY);
+
+    // Determine the sender address.
+    const from = process.env.RESEND_FROM_EMAIL || 'FlexiWork <onboarding@resend.dev>';
+
+    const { data, error } = await resend.emails.send({
+        from,
+        to: [options.email],
         subject: options.subject,
         text: options.message,
-        html: options.html
-    };
+        html: options.html || `<p>${options.message}</p>`,
+    });
 
-    let attempt = 0;
-    const maxRetries = 3;
-
-    while (attempt < maxRetries) {
-        try {
-            // Verify connection configuration
-            await transporter.verify();
-            
-            await transporter.sendMail(mailOptions);
-            console.log(`Email successfully sent to: ${options.email}`);
-            return; // Success, exit function
-        } catch (error) {
-            attempt++;
-            console.error(`Email delivery attempt ${attempt} failed to ${options.email}:`, error.message);
-            
-            if (attempt >= maxRetries) {
-                console.error(`All retry attempts failed. Email not sent to ${options.email}.`);
-                throw error; // Rethrow to let the controller handle it
-            }
-            
-            // Wait for a short time before retrying (exponential backoff: 1s, 2s)
-            await new Promise((resolve) => setTimeout(resolve, 1000 * attempt));
-        }
+    if (error) {
+        console.error(`Resend API error sending to ${options.email}:`, error);
+        throw new Error(error.message || 'Failed to send email via Resend');
     }
+
+    console.log(`Email sent successfully to ${options.email} | id: ${data?.id}`);
 };
 
 module.exports = sendEmail;

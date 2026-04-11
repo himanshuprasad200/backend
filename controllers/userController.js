@@ -105,16 +105,47 @@ exports.forgotPassword = catchAsyncErrors(async (req, res, next) => {
 
   // Get Reset OTP
   const otp = user.getResetOTP();
-
   await user.save({ validateBeforeSave: false });
 
-  const message = `Your password reset OTP is :- \n\n ${otp} \n\nThis OTP is valid for 10 minutes. If you have not requested this email then, please ignore it.`;
+  const frontendUrl = process.env.FRONTEND_URL || 'https://frontend-fw.onrender.com';
+  const logoUrl = `${frontendUrl}/FlexiWork.png`;
+
+  const htmlContent = `
+    <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #e2e8f0; border-radius: 16px; overflow: hidden; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);">
+      <div style="background: linear-gradient(135deg, #0ea5e9, #2563eb); padding: 30px; text-align: center;">
+        <img src="${logoUrl}" alt="FlexiWork" style="max-height: 50px; width: auto; display: block; margin: 0 auto;">
+      </div>
+      <div style="padding: 40px 30px; text-align: center;">
+        <h2 style="color: #1e293b; margin-top: 0; font-size: 24px; font-weight: 600;">Verify Your Email</h2>
+        <p style="color: #64748b; font-size: 16px; line-height: 1.6; margin-bottom: 30px;">
+          Hi <strong>${user.name}</strong>, please use the verification code below to complete your password reset process.
+        </p>
+        
+        <div style="background-color: #f0f9ff; border: 2px dashed #bae6fd; border-radius: 12px; padding: 25px; margin: 30px 0;">
+          <span style="font-family: 'Courier New', Courier, monospace; font-size: 42px; font-weight: 800; color: #0284c7; letter-spacing: 0.25em;">${otp}</span>
+        </div>
+        
+        <p style="color: #94a3b8; font-size: 14px; margin-top: 30px;">
+          This code expires in <strong>10 minutes</strong>.
+        </p>
+        <p style="color: #cbd5e1; font-size: 12px; margin-top: 10px;">
+          If you did not request this code, you can safely ignore this email.
+        </p>
+      </div>
+      <div style="background-color: #f8fafc; padding: 20px; text-align: center; border-top: 1px solid #e2e8f0;">
+        <p style="color: #94a3b8; font-size: 12px; margin: 0;">
+          © ${new Date().getFullYear()} FlexiWork Inc. All rights reserved.
+        </p>
+      </div>
+    </div>
+  `;
 
   try {
     await sendEmail({
       email: user.email,
-      subject: `Freelance Password Recovery OTP`,
-      message,
+      subject: `FlexiWork Password Recovery OTP`,
+      message: `Your password reset OTP is ${otp}. It expires in 10 minutes.`,
+      html: htmlContent,
     });
 
     res.status(200).json({

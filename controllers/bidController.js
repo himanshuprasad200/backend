@@ -328,7 +328,8 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
             htmlContent = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                     <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); padding: 30px; text-align: center;">
-                        <h1 style="color: white; margin: 0; font-size: 24px;">Bid Approved!</h1>
+                        <img src="${frontendUrl}/FlexiWork.png" alt="FlexiWork" style="max-height: 45px; width: auto; display: block; margin: 0 auto;">
+                        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Bid Approved!</p>
                     </div>
                     <div style="padding: 30px; line-height: 1.6;">
                         <p style="font-size: 16px;">Hi <strong>${user.name}</strong>,</p>
@@ -364,7 +365,8 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
             htmlContent = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                     <div style="background: #64748b; padding: 30px; text-align: center;">
-                        <h1 style="color: white; margin: 0; font-size: 24px;">Bid Update</h1>
+                        <img src="${frontendUrl}/FlexiWork.png" alt="FlexiWork" style="max-height: 45px; width: auto; display: block; margin: 0 auto;">
+                        <p style="color: rgba(255,255,255,0.9); margin: 10px 0 0 0; font-size: 14px; font-weight: 600; text-transform: uppercase; letter-spacing: 1px;">Bid Update</p>
                     </div>
                     <div style="padding: 30px; line-height: 1.6;">
                         <p style="font-size: 16px;">Hi <strong>${user.name}</strong>,</p>
