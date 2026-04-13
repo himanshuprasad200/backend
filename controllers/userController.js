@@ -40,6 +40,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     professionalHeadline,
     accountNo,
     upiId,
+    category,
   } = req.body;
 
   const user = await User.create({
@@ -50,6 +51,7 @@ exports.registerUser = catchAsyncErrors(async (req, res, next) => {
     professionalHeadline,
     accountNo,
     upiId,
+    category,
     avatar: avatarObj,
   });
 
@@ -233,6 +235,7 @@ exports.updateProfile = catchAsyncErrors(async (req, res, next) => {
       country: req.body.country,
       accountNo: req.body.accountNo,
       upiId: req.body.upiId,
+      category: req.body.category,
     };
 
     console.log("Received user data:", newUserData);
@@ -350,6 +353,61 @@ exports.getAllUser = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     users,
+  });
+});
+
+// GET ALL FREELANCERS (Public)
+exports.getFreelancers = catchAsyncErrors(async (req, res, next) => {
+  const resultPerPage = 12;
+  const { keyword, category, page } = req.query;
+
+  let query = { role: { $in: ["user", "admin"] } };
+
+  if (keyword) {
+    query.$or = [
+      { name: { $regex: keyword, $options: "i" } },
+      { professionalHeadline: { $regex: keyword, $options: "i" } }
+    ];
+  }
+
+  if (category && category !== "" && category !== "All Talent") {
+    // Advanced Smart Match Algorithm:
+    // 1. Break category into keywords (e.g., "Graphic Design" -> ["Graphic", "Design"])
+    // 2. Filter out short/common words
+    // 3. Match if category tag is exact OR headline contains major keywords
+    const keywords = category.split(/\s+/)
+      .filter(k => k.length > 2)
+      .map(k => new RegExp(k, "i"));
+    
+    query.$and = [
+      { role: { $in: ["user", "admin"] } },
+      {
+        $or: [
+          { category: category },
+          { professionalHeadline: { $regex: category, $options: "i" } },
+          { professionalHeadline: { $in: keywords } }, // Matches any keyword from category in headline
+          // Fuzzy match for specific endings (e.g., Design -> Designer)
+          { professionalHeadline: { $regex: category.replace(/ing$|ion$|n$/, ""), $options: "i" } }
+        ]
+      }
+    ];
+    delete query.role;
+  }
+
+  const freelancersCount = await User.countDocuments(query);
+
+  const currentPage = Number(page) || 1;
+  const skip = resultPerPage * (currentPage - 1);
+
+  const freelancers = await User.find(query)
+    .limit(resultPerPage)
+    .skip(skip);
+
+  res.status(200).json({
+    success: true,
+    freelancers,
+    freelancersCount,
+    resultPerPage,
   });
 });
 

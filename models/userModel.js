@@ -21,6 +21,10 @@ const userSchema = new mongoose.Schema({
     unique: true,
     validate: [validator.isEmail, "Please Enter a Valid Email"],
   },
+  category: {
+    type: String,
+    default: "Other"
+  },
   professionalHeadline: {
     type: String,
     required: [true, "Please Enter Your Work Role"],

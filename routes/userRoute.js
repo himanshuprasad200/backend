@@ -16,7 +16,9 @@ const {
   deleteUserReview,
   getSupportId,
   resetPassword,
+  getFreelancers,
 } = require("../controllers/userController");
+const { getAllCategories } = require("../controllers/commonController");
 const { isAuthenticatedUser, authorizeRoles } = require("../middleware/auth");
 const router = express.Router();
 
@@ -25,6 +27,8 @@ router.route("/login").post(loginUser);
 router.route("/password/forgot").post(forgotPassword);
 router.route("/password/reset").put(resetPassword);
 router.route("/logout").get(logout);
+router.route("/freelancers").get(getFreelancers);
+router.route("/categories").get(getAllCategories);
 router.route("/me").get(isAuthenticatedUser, getUserDetails);
 router.route("/password/update").put(isAuthenticatedUser, updatePassword);
 router.route("/me/update").put(isAuthenticatedUser, updateProfile);
