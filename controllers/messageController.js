@@ -41,7 +41,7 @@ exports.getUnreadNotifications = catchAsyncErrors(async (req, res, next) => {
   const currentUserId = req.user._id.toString();
 
   // Aggregate unread messages by sender to show distinct notifications
-  // Using find so we can populate the sender name
+  // Using find so we can populate the sender name 
   const unreadMessages = await Message.find({
     receiver: currentUserId,
     isRead: false
