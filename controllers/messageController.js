@@ -107,7 +107,7 @@ exports.uploadChatMedia = catchAsyncErrors(async (req, res, next) => {
         mediaType = "image";
       } else if (mimeType.startsWith("video/")) {
         mediaType = "video";
-      }
+      } 
 
       try {
         const options = {
