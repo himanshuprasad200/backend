@@ -68,14 +68,14 @@ exports.newBid = catchAsyncErrors(async (req, res, next) => {
 
   // Fetch project details for pricing snapshot
   const projects = await Project.find({ _id: { $in: projectIds } });
-  
+
   if (projects.length === 0) {
-      return next(new ErrorHandler("Selected projects not found", 404));
+    return next(new ErrorHandler("Selected projects not found", 404));
   }
 
   const bidsItemsSnapshots = projects.map(p => ({
-      project: p._id,
-      price: p.price
+    project: p._id,
+    price: p.price
   }));
 
   const bid = await Bid.create({
@@ -121,29 +121,29 @@ exports.getSingleBid = catchAsyncErrors(async (req, res, next) => {
   const normalizedItems = [];
   for (let item of bid.bidsItems) {
     if (item.project && typeof item.project !== 'string' && item.project.title) {
-       // New structure, already populated
-       normalizedItems.push(item);
+      // New structure, already populated
+      normalizedItems.push(item);
     } else if (item.project) {
-       // Semi-legacy: has project ID as string, maybe has flat data (title, price, etc.)
-       const projectId = typeof item.project === 'string' ? item.project : item.project.toString();
-       const projectData = await Project.findById(projectId).populate("postedBy", "name avatar");
-       if (projectData) {
-          normalizedItems.push({
-             project: projectData,
-             price: item.price || projectData.price,
-             isLegacy: true1
-          });
-       }
+      // Semi-legacy: has project ID as string, maybe has flat data (title, price, etc.)
+      const projectId = typeof item.project === 'string' ? item.project : item.project.toString();
+      const projectData = await Project.findById(projectId).populate("postedBy", "name avatar");
+      if (projectData) {
+        normalizedItems.push({
+          project: projectData,
+          price: item.price || projectData.price,
+          isLegacy: true1
+        });
+      }
     } else {
-       // Deep legacy: item itself is the ID
-       const projectData = await Project.findById(item).populate("postedBy", "name avatar");
-       if (projectData) {
-          normalizedItems.push({
-             project: projectData,
-             price: projectData.price,
-             isLegacy: true
-          });
-       }
+      // Deep legacy: item itself is the ID
+      const projectData = await Project.findById(item).populate("postedBy", "name avatar");
+      if (projectData) {
+        normalizedItems.push({
+          project: projectData,
+          price: projectData.price,
+          isLegacy: true
+        });
+      }
     }
   }
   bid.bidsItems = normalizedItems;
@@ -208,7 +208,7 @@ exports.getAllBids = catchAsyncErrors(async (req, res, next) => {
     const myProjects = await Project.find({ postedBy: req.user.id }).select("_id");
     const myProjectIds = myProjects.map((p) => p._id);
 
-    bids = await Bid.find({ 
+    bids = await Bid.find({
       $or: [
         { "bidsItems.project": { $in: myProjectIds } },
         { "bidsItems": { $in: myProjectIds } }
@@ -250,82 +250,82 @@ exports.getAllBids = catchAsyncErrors(async (req, res, next) => {
 
 //Update Bid -- Admin
 exports.updateBid = catchAsyncErrors(async (req, res, next) => {
-    const bidId = req.params.id;
-    const newStatus = req.body.status;
-  
-    if (!["Pending", "Approved", "Rejected"].includes(newStatus)) {
-      return next(new ErrorHandler("Invalid status value", 400));
-    }
-  
-    const bid = await Bid.findById(bidId);
-  
-    if (!bid) {
-      return next(new ErrorHandler("Bid not found", 404));
-    }
+  const bidId = req.params.id;
+  const newStatus = req.body.status;
 
-    // NEW CHECK: Verify if admin posted at least one project in this bid
-    if (req.user.role !== "superadmin") {
-      const bidProjectIds = bid.bidsItems.map(item => item.project);
-      const adminProjects = await Project.find({
-        _id: { $in: bidProjectIds },
-        postedBy: req.user.id
-      });
+  if (!["Pending", "Approved", "Rejected"].includes(newStatus)) {
+    return next(new ErrorHandler("Invalid status value", 400));
+  }
 
-      if (adminProjects.length === 0) {
-        return next(new ErrorHandler("Not authorized to manage this bid", 403));
-      }
+  const bid = await Bid.findById(bidId);
+
+  if (!bid) {
+    return next(new ErrorHandler("Bid not found", 404));
+  }
+
+  // NEW CHECK: Verify if admin posted at least one project in this bid
+  if (req.user.role !== "superadmin") {
+    const bidProjectIds = bid.bidsItems.map(item => item.project);
+    const adminProjects = await Project.find({
+      _id: { $in: bidProjectIds },
+      postedBy: req.user.id
+    });
+
+    if (adminProjects.length === 0) {
+      return next(new ErrorHandler("Not authorized to manage this bid", 403));
     }
-  
-    if (bid.response === "Approved" && newStatus === "Approved") {
-      return next(new ErrorHandler("Client has already approved this bid", 400));
-    }
-  
-    bid.response = newStatus;
-  
+  }
+
+  if (bid.response === "Approved" && newStatus === "Approved") {
+    return next(new ErrorHandler("Client has already approved this bid", 400));
+  }
+
+  bid.response = newStatus;
+
+  if (newStatus === "Approved") {
+    bid.approvedAt = Date.now();
+  }
+
+  await bid.save({ validateBeforeSave: false });
+
+  // --- SEND EMAIL NOTIFICATION ---
+  try {
+    const populatedBid = await Bid.findById(bidId)
+      .populate("user", "name email accountNo") // Populate accountNo
+      .populate("bidsItems.project", "title price");
+
+    const user = populatedBid.user;
+    const projects = populatedBid.bidsItems;
+    const projectTitles = projects.map(p => p.project.title).join(", ");
+    const amount = req.body.amount || projects.reduce((acc, p) => acc + (p.price || 0), 0);
+
+    // Truncate proposal for email
+    const proposalPreview = populatedBid.proposal.length > 150
+      ? populatedBid.proposal.slice(0, 150) + "..."
+      : populatedBid.proposal;
+
+    const approvalDate = new Date().toLocaleDateString('en-IN', {
+      day: '2-digit',
+      month: 'long',
+      year: 'numeric'
+    });
+
+    let subject, message, htmlContent;
+
+    const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || '5173'}`;
+
+    // Generate a public access token for this user's balance summary
+    const jwt = require("jsonwebtoken");
+    const publicAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: "7d", // Valid for 7 days
+    });
+
     if (newStatus === "Approved") {
-      bid.approvedAt = Date.now();
-    }
-  
-    await bid.save({ validateBeforeSave: false });
-  
-    // --- SEND EMAIL NOTIFICATION ---
-    try {
-        const populatedBid = await Bid.findById(bidId)
-            .populate("user", "name email accountNo") // Populate accountNo
-            .populate("bidsItems.project", "title price");
+      const publicLink = `${frontendUrl}/public/earning/${publicAccessToken}`;
+      subject = `Good News! Your Bid for "${projectTitles}" has been Approved`;
+      message = `Hi ${user.name},\nWe are pleased to inform you that your bid for "${projectTitles}" has been Approved on ${approvalDate}.\nPayment of ₹${amount} is sent to Account No: ${user.accountNo || 'N/A'}.\nProposal Snippet: ${proposalPreview}\nView your balance summary (no login required): ${publicLink}\nFull Account Dashboard: ${frontendUrl}/user/earning`;
 
-        const user = populatedBid.user;
-        const projects = populatedBid.bidsItems;
-        const projectTitles = projects.map(p => p.project.title).join(", ");
-        const amount = req.body.amount || projects.reduce((acc, p) => acc + (p.price || 0), 0);
-        
-        // Truncate proposal for email
-        const proposalPreview = populatedBid.proposal.length > 150 
-            ? populatedBid.proposal.slice(0, 150) + "..." 
-            : populatedBid.proposal;
-            
-        const approvalDate = new Date().toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'long',
-            year: 'numeric'
-        });
-
-        let subject, message, htmlContent;
-
-        const frontendUrl = process.env.FRONTEND_URL || `http://localhost:${process.env.FRONTEND_PORT || '5173'}`;
-        
-        // Generate a public access token for this user's balance summary
-        const jwt = require("jsonwebtoken");
-        const publicAccessToken = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
-            expiresIn: "7d", // Valid for 7 days
-        });
-
-        if (newStatus === "Approved") {
-            const publicLink = `${frontendUrl}/public/earning/${publicAccessToken}`;
-            subject = `Good News! Your Bid for "${projectTitles}" has been Approved`;
-            message = `Hi ${user.name},\nWe are pleased to inform you that your bid for "${projectTitles}" has been Approved on ${approvalDate}.\nPayment of ₹${amount} is sent to Account No: ${user.accountNo || 'N/A'}.\nProposal Snippet: ${proposalPreview}\nView your balance summary (no login required): ${publicLink}\nFull Account Dashboard: ${frontendUrl}/user/earning`;
-            
-            htmlContent = `
+      htmlContent = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                     <div style="background: linear-gradient(135deg, #0ea5e9, #0284c7); padding: 30px; text-align: center;">
                         <img src="${frontendUrl}/FlexiWork.png" alt="FlexiWork" style="max-height: 45px; width: auto; display: block; margin: 0 auto;">
@@ -358,11 +358,11 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
                     </div>
                 </div>
             `;
-        } else {
-            subject = `Update on your Bid for "${projectTitles}"`;
-            message = `Hi ${user.name},\nThank you for your proposal for "${projectTitles}". Unfortunately, the client has not moved forward with your proposal this time.\nProposal Snippet: ${proposalPreview}\nKeep applying! Your next big break is just around the corner: ${frontendUrl}/projects`;
-            
-            htmlContent = `
+    } else {
+      subject = `Update on your Bid for "${projectTitles}"`;
+      message = `Hi ${user.name},\nThank you for your proposal for "${projectTitles}". Unfortunately, the client has not moved forward with your proposal this time.\nProposal Snippet: ${proposalPreview}\nKeep applying! Your next big break is just around the corner: ${frontendUrl}/projects`;
+
+      htmlContent = `
                 <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; border: 1px solid #e2e8f0; border-radius: 12px; overflow: hidden;">
                     <div style="background: #64748b; padding: 30px; text-align: center;">
                         <img src="${frontendUrl}/FlexiWork.png" alt="FlexiWork" style="max-height: 45px; width: auto; display: block; margin: 0 auto;">
@@ -389,24 +389,24 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
                     </div>
                 </div>
             `;
-        }
-
-        await sendEmail({
-            email: user.email,
-            subject,
-            message,
-            html: htmlContent
-        });
-
-    } catch (err) {
-        console.error("Email Sending Error:", err);
-        // We don't block the response update if email fails, just log it
     }
-  
-    res.status(200).json({
-      success: true,
+
+    await sendEmail({
+      email: user.email,
+      subject,
+      message,
+      html: htmlContent
     });
+
+  } catch (err) {
+    console.error("Email Sending Error:", err);
+    // We don't block the response update if email fails, just log it
+  }
+
+  res.status(200).json({
+    success: true,
   });
+});
 
 // DELETE BID
 exports.deleteBid = catchAsyncErrors(async (req, res, next) => {
@@ -440,7 +440,7 @@ exports.deleteBid = catchAsyncErrors(async (req, res, next) => {
     }
   }
 
-  await bid.deleteOne(); 
+  await bid.deleteOne();
 
   res.status(200).json({
     success: true,

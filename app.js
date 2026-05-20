@@ -13,7 +13,7 @@ app.set("trust proxy", 1);
 // CORS — Allow your frontend
 const allowedOrigins = [
   "https://frontend-fw.onrender.com", // Your actual frontend
-  "https://frontend-fw-bay.vercel.app",  
+  "https://frontend-fw-bay.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174"
 ];
@@ -23,7 +23,7 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {

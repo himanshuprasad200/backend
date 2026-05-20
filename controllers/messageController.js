@@ -2,6 +2,8 @@ const Message = require("../models/messageModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const cloudinary = require("cloudinary");
 const ErrorHandler = require("../utils/errorHandler");
+const mongoose = require("mongoose");
+const User = require("../models/userModel");
 
 exports.getMessages = catchAsyncErrors(async (req, res, next) => {
   const { projectId, userId } = req.query; 
@@ -138,5 +140,55 @@ exports.uploadChatMedia = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     media: filteredMedia,
+  });
+});
+
+exports.getConversations = catchAsyncErrors(async (req, res, next) => {
+  const currentUserId = new mongoose.Types.ObjectId(req.user._id);
+
+  const conversations = await Message.aggregate([
+    {
+      $match: {
+        $or: [
+          { sender: currentUserId },
+          { receiver: currentUserId }
+        ]
+      }
+    },
+    {
+      $sort: { createdAt: -1 }
+    },
+    {
+      $group: {
+        _id: {
+          $cond: [
+            { $eq: ["$sender", currentUserId] },
+            "$receiver",
+            "$sender"
+          ]
+        },
+        latestMessage: { $first: "$$ROOT" }
+      }
+    },
+    {
+      $sort: { "latestMessage.createdAt": -1 }
+    }
+  ]);
+
+  const populatedConversations = await User.populate(conversations, {
+    path: "_id",
+    select: "name avatar email role"
+  });
+
+  const chats = populatedConversations
+    .filter(conv => conv._id) // Filter out any conversations where the user might have been deleted
+    .map(conv => ({
+      user: conv._id,
+      latestMessage: conv.latestMessage
+    }));
+
+  res.status(200).json({
+    success: true,
+    conversations: chats
   });
 });
