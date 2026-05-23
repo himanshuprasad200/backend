@@ -110,6 +110,12 @@ const userSchema = new mongoose.Schema({
       },
     },
   ],
+  savedProjects: [
+    {
+      type: mongoose.Schema.ObjectId,
+      ref: "Project",
+    },
+  ],
   createdAt: {
     type: Date, 
     default: Date.now,

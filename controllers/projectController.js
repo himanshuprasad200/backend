@@ -1,4 +1,5 @@
 const Project = require("../models/projectModel");
+const User = require("../models/userModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ApiFeatures = require("../utils/apifeatures");
 const ErrorHandler = require("../utils/errorHandler");
@@ -291,5 +292,64 @@ exports.deleteReview = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
+  });
+});
+
+// Bookmark / Unbookmark a project
+exports.bookmarkProject = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Ensure user.savedProjects is initialized
+  if (!user.savedProjects) {
+    user.savedProjects = [];
+  }
+
+  const isBookmarked = user.savedProjects.includes(project._id);
+
+  if (isBookmarked) {
+    // Unbookmark
+    user.savedProjects = user.savedProjects.filter(
+      (id) => id.toString() !== project._id.toString()
+    );
+  } else {
+    // Bookmark
+    user.savedProjects.push(project._id);
+  }
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    success: true,
+    isBookmarked: !isBookmarked,
+    savedProjects: user.savedProjects,
+    message: isBookmarked ? "Project removed from saved list" : "Project saved successfully",
+  });
+});
+
+// Get Saved Projects for logged in user
+exports.getSavedProjects = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id).populate({
+    path: "savedProjects",
+    populate: {
+      path: "postedBy",
+      select: "name avatar country",
+    },
+  });
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    savedProjects: user.savedProjects || [],
   });
 });
