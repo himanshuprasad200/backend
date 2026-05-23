@@ -46,6 +46,8 @@ const io = new Server(server, {
 const Message = require("./models/messageModel");
 
 let onlineUsers = [];
+app.set("io", io);
+app.set("onlineUsers", onlineUsers);
 
 io.on("connection", (socket) => {
   console.log("Connected to socket.io", socket.id);

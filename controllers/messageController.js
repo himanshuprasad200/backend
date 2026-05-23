@@ -1,4 +1,5 @@
 const Message = require("../models/messageModel");
+const Notification = require("../models/notificationModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const cloudinary = require("cloudinary");
 const ErrorHandler = require("../utils/errorHandler");
@@ -190,5 +191,31 @@ exports.getConversations = catchAsyncErrors(async (req, res, next) => {
   res.status(200).json({
     success: true,
     conversations: chats
+  });
+});
+
+// Get System Notifications
+exports.getSystemNotifications = catchAsyncErrors(async (req, res, next) => {
+  const notifications = await Notification.find({ recipient: req.user._id })
+    .sort({ createdAt: -1 })
+    .populate("sender", "name avatar")
+    .populate("project", "title");
+
+  res.status(200).json({
+    success: true,
+    notifications: notifications || [],
+  });
+});
+
+// Mark all System Notifications as read
+exports.markSystemNotificationsRead = catchAsyncErrors(async (req, res, next) => {
+  await Notification.updateMany(
+    { recipient: req.user._id, isRead: false },
+    { isRead: true }
+  );
+
+  res.status(200).json({
+    success: true,
+    message: "All system notifications marked as read",
   });
 });

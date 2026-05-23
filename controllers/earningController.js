@@ -1,6 +1,7 @@
 const Earning = require("../models/earningModel");
 const User = require("../models/userModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
+const sendNotification = require("../utils/sendNotification");
 
 // controllers/earningController.js
 exports.createEarning = async (req, res) => {
@@ -24,6 +25,15 @@ exports.createEarning = async (req, res) => {
     }); 
 
     await newEarning.save();
+
+    // Trigger Notification!
+    const senderId = req.user ? req.user._id : userId; // Fallback to user themselves if system action
+    await sendNotification(req, {
+      recipient: userId,
+      sender: senderId,
+      type: "payment_received",
+      message: `An earning payment of ₹${amount.toLocaleString('en-IN')} has been successfully credited to your account!`,
+    });
 
     res
       .status(201)

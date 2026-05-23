@@ -5,6 +5,7 @@ const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const mongoose = require("mongoose");
 const sendEmail = require("../utils/sendEmail");
 const cloudinary = require("cloudinary");
+const sendNotification = require("../utils/sendNotification");
 
 //Create New Bid
 exports.newBid = catchAsyncErrors(async (req, res, next) => {
@@ -90,6 +91,17 @@ exports.newBid = catchAsyncErrors(async (req, res, next) => {
     path: "bidsItems.project",
     select: "title price images category name",
   });
+
+  // Send System Notifications to the project posters (admins)
+  for (let project of projects) {
+    await sendNotification(req, {
+      recipient: project.postedBy,
+      sender: req.user._id,
+      type: "bid_applied",
+      message: `${req.user.name} has applied a bid on your project: ${project.title}`,
+      project: project._id,
+    });
+  }
 
   res.status(201).json({
     success: true,
@@ -296,6 +308,20 @@ exports.updateBid = catchAsyncErrors(async (req, res, next) => {
 
     const user = populatedBid.user;
     const projects = populatedBid.bidsItems;
+
+    // --- SEND SYSTEM NOTIFICATIONS ---
+    for (let p of projects) {
+      if (p.project) {
+        await sendNotification(req, {
+          recipient: bid.user,
+          sender: req.user._id,
+          type: newStatus === "Approved" ? "bid_approved" : "bid_rejected",
+          message: `The client has ${newStatus.toLowerCase()} your bid for: ${p.project.title}`,
+          project: p.project._id,
+        });
+      }
+    }
+
     const projectTitles = projects.map(p => p.project.title).join(", ");
     const amount = req.body.amount || projects.reduce((acc, p) => acc + (p.price || 0), 0);
 
