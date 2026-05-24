@@ -57,6 +57,7 @@ const user = require("./routes/userRoute");
 const bid = require("./routes/bidRoute");
 const earning = require("./routes/earningRoute");
 const message = require("./routes/messageRoute");
+const support = require("./routes/supportRoute");
 
 // Mount Routes
 app.use("/api/v1", project);
@@ -64,6 +65,7 @@ app.use("/api/v1", user);
 app.use("/api/v1", bid);
 app.use("/api/v1", earning);
 app.use("/api/v1", message);
+app.use("/api/v1", support);
 
 // Test route (optional)
 app.get("/", (req, res) => {
