@@ -1,4 +1,5 @@
 const Project = require("../models/projectModel");
+const User = require("../models/userModel");
 const catchAsyncErrors = require("../middleware/catchAsyncErrors");
 const ApiFeatures = require("../utils/apifeatures");
 const ErrorHandler = require("../utils/errorHandler");
@@ -61,7 +62,12 @@ exports.getAllProjects = catchAsyncErrors(async (req, res) => {
 
 //Get All Projects -- Admin only
 exports.getAdminProjects = catchAsyncErrors(async (req, res) => {
-  const projects = await Project.find();
+  let projects;
+  if (req.user.role === "superadmin") {
+    projects = await Project.find();
+  } else {
+    projects = await Project.find({ postedBy: req.user.id });
+  }
 
   res.status(200).json({
     success: true,
@@ -80,9 +86,28 @@ exports.getProjectDetails = catchAsyncErrors(async (req, res, next) => {
     return next(new ErrorHandler("Project not found", 404));
   }
 
+  let hasApplied = false;
+  let bidStatus = null;
+  // If user is logged in, check if they have applied to this project
+  if (req.user) {
+    const bid = await Bid.findOne({
+      user: req.user._id,
+      bidsItems: { $in: [req.params.id] }
+    });
+    if (bid) {
+      bidStatus = bid.response || "Pending";
+      // Only allow chat if Pending or Approved (Rejected is locked)
+      if (bidStatus === "Pending" || bidStatus === "Approved") {
+        hasApplied = true; 
+      }
+    }
+  }
+
   res.status(200).json({
     success: true,
     project,
+    hasApplied,
+    bidStatus
   });
 });
 
@@ -92,6 +117,10 @@ exports.updateProject = catchAsyncErrors(async (req, res, next) => {
 
   if (!project) {
     return next(new ErrorHandler("Project not found", 404));
+  }
+  
+  if (req.user.role !== "superadmin" && project.postedBy.toString() !== req.user.id) {
+    return next(new ErrorHandler("Not authorized to update this project", 403));
   }
 
   let images = [];
@@ -142,6 +171,10 @@ exports.deleteProject = async (req, res, next) => {
 
     if (!project) {
       return next(new ErrorHandler("Project not found", 404));
+    }
+    
+    if (req.user.role !== "superadmin" && project.postedBy.toString() !== req.user.id) {
+      return next(new ErrorHandler("Not authorized to delete this project", 403));
     }
 
     // DELETING IMAGES FROM CLOUDINARY
@@ -259,5 +292,64 @@ exports.deleteReview = catchAsyncErrors(async (req, res, next) => {
 
   res.status(200).json({
     success: true,
+  });
+});
+
+// Bookmark / Unbookmark a project
+exports.bookmarkProject = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id);
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  const project = await Project.findById(req.params.id);
+  if (!project) {
+    return next(new ErrorHandler("Project not found", 404));
+  }
+
+  // Ensure user.savedProjects is initialized
+  if (!user.savedProjects) {
+    user.savedProjects = [];
+  }
+
+  const isBookmarked = user.savedProjects.includes(project._id);
+
+  if (isBookmarked) {
+    // Unbookmark
+    user.savedProjects = user.savedProjects.filter(
+      (id) => id.toString() !== project._id.toString()
+    );
+  } else {
+    // Bookmark
+    user.savedProjects.push(project._id);
+  }
+
+  await user.save({ validateBeforeSave: false });
+
+  res.status(200).json({
+    success: true,
+    isBookmarked: !isBookmarked,
+    savedProjects: user.savedProjects,
+    message: isBookmarked ? "Project removed from saved list" : "Project saved successfully",
+  });
+});
+
+// Get Saved Projects for logged in user
+exports.getSavedProjects = catchAsyncErrors(async (req, res, next) => {
+  const user = await User.findById(req.user.id).populate({
+    path: "savedProjects",
+    populate: {
+      path: "postedBy",
+      select: "name avatar country",
+    },
+  });
+
+  if (!user) {
+    return next(new ErrorHandler("User not found", 404));
+  }
+
+  res.status(200).json({
+    success: true,
+    savedProjects: user.savedProjects || [],
   });
 });

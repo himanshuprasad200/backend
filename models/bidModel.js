@@ -9,9 +9,15 @@ const bidSchema = new mongoose.Schema({
   },
   bidsItems: [
     {
-      type: mongoose.Schema.ObjectId,
-      ref: "Project",
-      required: true,
+      project: {
+        type: mongoose.Schema.ObjectId,
+        ref: "Project",
+        required: true,
+      },
+      price: {
+        type: Number,
+        required: true,
+      },
     },
   ],
   user: {
@@ -24,7 +30,26 @@ const bidSchema = new mongoose.Schema({
     enum: ["Pending", "Approved", "Rejected"],
     default: "Pending",
   },
-  file: String,
+  attachments: [
+    {
+      public_id: {
+        type: String,
+        required: true,
+      },
+      url: {
+        type: String,
+        required: true,
+      },
+      name: {
+        type: String,
+        required: true,
+      },
+      resource_type: {
+        type: String,
+        required: true,
+      }
+    },
+  ],
   completedAt: {
     type: Date,
     default: Date.now,

@@ -13,7 +13,7 @@ app.set("trust proxy", 1);
 // CORS — Allow your frontend
 const allowedOrigins = [
   "https://frontend-fw.onrender.com", // Your actual frontend
-  "https://frontend-fw-k9qq.onrender.com",  
+  "https://frontend-fw-bay.vercel.app",
   "http://localhost:5173",
   "http://localhost:5174"
 ];
@@ -23,7 +23,7 @@ app.use(
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman)
       if (!origin) return callback(null, true);
-      
+
       if (allowedOrigins.includes(origin)) {
         callback(null, true);
       } else {
@@ -41,9 +41,10 @@ app.use(
 app.options("*", cors());
 
 // Body parsers & middlewares
-app.use(express.json({ limit: "10mb" }));
-app.use(express.urlencoded({ extended: true }));
-app.use(bodyParser.urlencoded({ extended: true }));
+// Increase limits for large image payloads (e.g., base64 strings)
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 app.use(cookieParser());
 app.use(fileUpload({
   useTempFiles: true,
@@ -55,12 +56,16 @@ const project = require("./routes/projectRoute");
 const user = require("./routes/userRoute");
 const bid = require("./routes/bidRoute");
 const earning = require("./routes/earningRoute");
+const message = require("./routes/messageRoute");
+const support = require("./routes/supportRoute");
 
 // Mount Routes
 app.use("/api/v1", project);
 app.use("/api/v1", user);
 app.use("/api/v1", bid);
 app.use("/api/v1", earning);
+app.use("/api/v1", message);
+app.use("/api/v1", support);
 
 // Test route (optional)
 app.get("/", (req, res) => {
