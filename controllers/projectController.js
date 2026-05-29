@@ -206,6 +206,7 @@ exports.createProjectReview = catchAsyncErrors(async (req, res, next) => {
     name: req.body.name,
     rating: Number(rating),
     comment,
+    createdAt: new Date(),
   };
 
   const project = await Project.findById(projectId);
@@ -216,8 +217,11 @@ exports.createProjectReview = catchAsyncErrors(async (req, res, next) => {
 
   if (isReviewed) {
     project.reviews.forEach((rev) => {
-      if (rev.user.toString() === req.user._id.toString())
-        (rev.rating = rating), (rev.comment = comment);
+      if (rev.user.toString() === req.user._id.toString()) {
+        rev.rating = rating;
+        rev.comment = comment;
+        rev.createdAt = new Date();
+      }
     });
   } else {
     project.reviews.push(review);

@@ -526,6 +526,7 @@ exports.createUserReview = catchAsyncErrors(async (req, res, next) => {
     avatar: currentUser.avatar.url,
     rating: Number(rating),
     comment,
+    createdAt: new Date(),
   };
 
   const user = await User.findById(userId);
@@ -536,8 +537,11 @@ exports.createUserReview = catchAsyncErrors(async (req, res, next) => {
 
   if (isReviewed) {
     user.reviews.forEach((rev) => {
-      if (rev.user.toString() === req.user._id.toString())
-        (rev.rating = rating), (rev.comment = comment);
+      if (rev.user.toString() === req.user._id.toString()) {
+        rev.rating = rating;
+        rev.comment = comment;
+        rev.createdAt = new Date();
+      }
     });
   } else {
     user.reviews.push(review);
