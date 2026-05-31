@@ -6,6 +6,7 @@ const Bid = require("../models/bidModel");
 const sendToken = require("../utils/jwtToken");
 const sendEmail = require("../utils/sendEmail");
 const cloudinary = require("cloudinary");
+const sendNotification = require("../utils/sendNotification");
 
 //Register user
 exports.registerUser = catchAsyncErrors(async (req, res, next) => {
@@ -555,6 +556,20 @@ exports.createUserReview = catchAsyncErrors(async (req, res, next) => {
 
   user.ratings = avg / user.reviews.length;
   await user.save({ validateBeforeSave: false });
+
+  // --- SEND REVIEW NOTIFICATION TO THE REVIEWED USER ---
+  try {
+    const starLabel = Number(rating) >= 4 ? "⭐ Great" : Number(rating) >= 3 ? "👍 Good" : "📝 New";
+    await sendNotification(req, {
+      recipient: userId,
+      sender: req.user._id,
+      type: "review_received",
+      message: `${req.user.name} left you a ${starLabel} review (${rating}★): "${comment.slice(0, 60)}${comment.length > 60 ? "..." : ""}"`,
+    });
+  } catch (notifErr) {
+    // Don't block the main response if notification fails
+    console.error("Review notification error:", notifErr.message);
+  }
 
   res.status(200).json({
     success: true,
